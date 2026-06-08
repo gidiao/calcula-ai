@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CALCULA AÍ</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #0d0d1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 10px;
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        canvas {
+            background-color: #121212;
+            border: 4px solid #323232;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 400 / 600;
+        }
+        /* Mobile Controls */
+        .controls-container {
+            width: 100%;
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .control-btn {
+            background-color: #2a2a40;
+            border: 2px solid #444466;
+            color: white;
+            padding: 15px 5px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background-color 0.1s, transform 0.05s;
+            touch-action: manipulation;
+        }
+        .control-btn:active {
+            background-color: #3a3a5c;
+            transform: scale(0.95);
+        }
+        .control-btn.wide {
+            grid-column: span 2;
+            background-color: #3b3b54;
+            border-color: #555577;
+        }
+        .control-btn.drop {
+            background-color: #1e3d2f;
+            border-color: #2e5d47;
+        }
+        .instructions-pc {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #8888aa;
+            text-align: center;
+        }
+        @media (max-width: 450px) {
+            .instructions-pc {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        
+        <!-- Botões de Toque para Celular -->
+        <div class="controls-container">
+            <button class="control-btn" id="btnLeft">◀</button>
+            <button class="control-btn" id="btnInvert">Inverter</button>
+            <button class="control-btn" id="btnDown">▼</button>
+            <button class="control-btn" id="btnRight">▶</button>
+            <button class="control-btn wide drop" id="btnQuickDrop">Queda Rápida</button>
+            <button class="control-btn wide" id="btnPause">Pause / Menu</button>
+        </div>
+
+        <div class="instructions-pc">
+            <p>Computador: Setas (Mover/Acelerar) | Espaço (Inverter) | CTRL (Queda Rápida) | P (Pausar)</p>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
