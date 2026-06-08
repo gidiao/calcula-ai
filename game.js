@@ -79,7 +79,7 @@ class Fraction {
 const ScoreManager = {
     loadScores: function() {
         let scores = localStorage.getItem("calcula_ai_scores");
-        if (!scores) return [1265, 170, 115, 60]; // Padrão inicial do seu arquivo json
+        if (!scores) return [1265, 170, 115, 60]; // Padrão inicial original
         try {
             let parsed = JSON.parse(scores);
             return parsed.map(Number).sort((a,b) => b - a).slice(0, 5);
@@ -96,11 +96,10 @@ const ScoreManager = {
     }
 };
 
-// GERENCIADOR DE SONS (Substitui sounds.py usando a Web Audio API nativa para ser leve)
+// GERENCIADOR DE SONS (Substitui sounds.py usando a Web Audio API nativa)
 const SoundManager = {
     ctx: null,
     init: function() {
-        // Inicializa áudio no primeiro clique do usuário devido às políticas do navegador
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
@@ -196,7 +195,7 @@ class FractionBlock {
     constructor(fraction) {
         this.type = "FRACTION";
         if (!fraction) {
-            let den = Math.floor(Math.random() * 8) + 2; // 2 a 9
+            let den = Math.floor(Math.random() * 8) + 2;
             this.fraction = new Fraction(1, den);
         } else {
             this.fraction = fraction;
@@ -244,11 +243,10 @@ class LineBlock {
     }
 }
 
-// FORMATAS / PEÇAS (Substitui shapes.py)
+// FORMAS / PEÇAS (Substitui shapes.py)
 class BlockShape {
     constructor(type) {
         if (!type) {
-            // Sorteio por pesos
             let sum = Config.BLOCK_TYPE_WEIGHTS.reduce((a,b)=>a+b, 0);
             let rand = Math.random() * sum;
             let currentSum = 0;
@@ -345,28 +343,28 @@ class Game {
         this.gameState = Config.MENU;
         this.effects = new EffectsManager();
         this.highScores = ScoreManager.loadScores();
-		
-		// --- CARREGAR AS IMAGENS ---
+
+        // Carregamento de imagens nativas (Suporte opcional)
         this.backgroundImage = new Image();
         this.backgroundImage.src = 'imagem_fundo.png';
-
         this.pausedImage = new Image();
         this.pausedImage.src = 'f1.png';
-
         this.gameOverImage = new Image();
         this.gameOverImage.src = 'galo.png';
-        // ------------------------------------------------------
 
-        // Bindings para botões funcionarem com o escopo correto
-        this.pauseButton = new Button(Config.SCREEN_WIDTH - 90, 10, 80, 40, "Pause", () => this.togglePause());
-        this.invertButton = new Button(Config.SCREEN_WIDTH - 90, 60, 80, 40, "Inverter", () => this.invertCurrentShape());
-        this.menuButton = new Button(Config.SCREEN_WIDTH - 90, 110, 80, 40, "Menu", () => this.goToMenu());
+        // --- INTERFACE CORRIGIDA ---
+        // Apenas o botão Menu posicionado no topo superior direito da área de jogo
+        this.menuButton = new Button(Config.SCREEN_WIDTH - 90, 10, 80, 40, "Menu", () => this.goToMenu());
 
+        // Botões da Tela Inicial / Menu
         this.playButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2, 160, 50, "Jogar", () => this.startGame());
         this.scoresButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2 + 70, 160, 50, "Recordes", () => this.showHighScores());
+        
+        // Botão Reset DB com feedback visual de confirmação (alert) correta
         this.exitButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2 + 140, 160, 50, "Reset DB", () => {
             localStorage.clear();
             this.highScores = ScoreManager.loadScores();
+            alert("Banco de dados resetado com sucesso!");
         });
 
         this.resetGame();
@@ -403,10 +401,8 @@ class Game {
         SoundManager.playClick();
         if (this.gameState === Config.PLAYING) {
             this.gameState = Config.PAUSED;
-            this.pauseButton.text = "Resume";
         } else if (this.gameState === Config.PAUSED) {
             this.gameState = Config.PLAYING;
-            this.pauseButton.text = "Pause";
         }
     }
 
@@ -425,7 +421,7 @@ class Game {
         this.currentShape.y = 0;
         this.updateBlockPositions();
 
-        // Checar Fim de Jogo imediato
+        // Checar Game Over
         this.currentShape.blocks.forEach((block, i) => {
             let bx = this.currentShape.x + (i === 1 && this.currentShape.type === "DOUBLE" ? 1 : 0);
             let by = this.currentShape.y;
@@ -484,7 +480,6 @@ class Game {
 
         this.combo = 1;
 
-        // Processa bombas e linhas limpas
         this.currentShape.blocks.forEach(block => {
             if (block.type === "BOMB") {
                 let cx = block.x, cy = block.y;
@@ -628,7 +623,6 @@ class Game {
     }
 
     checkMulBlock() {
-        // De cima para baixo
         for (let y = 0; y < Config.BOARD_HEIGHT - 1; y++) {
             for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                 let b = this.board[y][x];
@@ -648,7 +642,6 @@ class Game {
                 }
             }
         }
-        // De baixo para cima
         for (let y = 1; y < Config.BOARD_HEIGHT; y++) {
             for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                 let b = this.board[y][x];
@@ -812,17 +805,15 @@ class Game {
             // Em jogo / Pausado / Game Over
             this.ctx.fillStyle = Config.BG_COLOR;
             this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
-			
-			// Desenha a imagem se ela já tiver sido carregada pelo navegador
-			if (this.backgroundImage.complete) {
-				// Ajuste a posição (X, Y) e tamanho (Largura, Altura) se necessário
-				let imgW = this.backgroundImage.width;
-				let imgH = this.backgroundImage.height;
-				let x = Config.SCREEN_WIDTH - imgW;
-				let y = (Config.SCREEN_HEIGHT - imgH) / 2;
-				this.ctx.drawImage(this.backgroundImage, x, y);
-			}
-			// -----------------------------------------------------------
+
+            // Suporte para Imagem de Fundo (Se carregada com sucesso)
+            if (this.backgroundImage.complete && this.backgroundImage.width > 0) {
+                let imgW = this.backgroundImage.width;
+                let imgH = this.backgroundImage.height;
+                let x = Config.SCREEN_WIDTH - imgW;
+                let y = (Config.SCREEN_HEIGHT - imgH) / 2;
+                this.ctx.drawImage(this.backgroundImage, x, y);
+            }
 
             // Grade do Tabuleiro
             let boardTop = 100;
@@ -839,67 +830,60 @@ class Game {
                 }
             }
 
-            // Forma cadente
+            // Peça em queda
             if (this.currentShape && this.gameState === Config.PLAYING) {
                 this.currentShape.blocks.forEach(block => {
                     this.drawBlock(block.x*Config.BLOCK_SIZE, boardTop + block.y*Config.BLOCK_SIZE, block);
                 });
             }
 
-            // Placar
+            // Placar de Pontos
             this.ctx.fillStyle = Config.WHITE;
             this.ctx.font = "bold 18px sans-serif";
             this.ctx.textAlign = "right";
             this.ctx.fillText(`Pontos: ${this.score}`, Config.SCREEN_WIDTH - 110, 35);
 
-            this.pauseButton.draw(this.ctx);
+            // Apenas o botão Menu é renderizado na área superior direita
             this.menuButton.draw(this.ctx);
-            this.invertButton.draw(this.ctx);
+            
             this.drawNextBlockPreview();
             this.effects.draw(this.ctx);
 
             if (this.gameState === Config.PAUSED) {
                 this.ctx.fillStyle = "rgba(0,0,0,0.85)";
                 this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
-				// ---IMAGEM DE PAUSA ---
-				if (this.pausedImage.complete) {
-					let iw = this.pausedImage.width;
-					let ih = this.pausedImage.height;
-					// Centraliza a imagem na tela
-					this.ctx.drawImage(this.pausedImage, (Config.SCREEN_WIDTH - iw) / 2, (Config.SCREEN_HEIGHT - ih) / 2 - 50);
-				}
-				// -------------------------------------------------
-				
+                
+                if (this.pausedImage.complete && this.pausedImage.width > 0) {
+                    this.ctx.drawImage(this.pausedImage, (Config.SCREEN_WIDTH - this.pausedImage.width) / 2, (Config.SCREEN_HEIGHT - this.pausedImage.height) / 2 - 50);
+                }
+                
                 this.ctx.fillStyle = Config.WHITE;
                 this.ctx.font = "bold 20px sans-serif";
                 this.ctx.textAlign = "center";
-                this.ctx.fillText("PAUSOU POR QUÊ? TÁ DIFÍCIL?", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2);
+                this.ctx.fillText("PAUSOU POR QUÊ? TÁ DIFÍCIL?", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 60);
             } else if (this.gameState === Config.GAME_OVER) {
                 this.ctx.fillStyle = "rgba(0,0,0,0.9)";
                 this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
-				// --- IMAGEM DO GALO ---
-				if (this.gameOverImage.complete) {
-					let iw = this.gameOverImage.width;
-					let ih = this.gameOverImage.height;
-					// Desenha centralizado
-					this.ctx.drawImage(this.gameOverImage, (Config.SCREEN_WIDTH - iw) / 2, (Config.SCREEN_HEIGHT - ih) / 2 - 60);
-				}
-				// -------------------------------------------------							
+                
+                if (this.gameOverImage.complete && this.gameOverImage.width > 0) {
+                    this.ctx.drawImage(this.gameOverImage, (Config.SCREEN_WIDTH - this.gameOverImage.width) / 2, (Config.SCREEN_HEIGHT - this.gameOverImage.height) / 2 - 60);
+                }
+                
                 this.ctx.fillStyle = "#ff3232";
                 this.ctx.font = "bold 40px sans-serif";
                 this.ctx.textAlign = "center";
-                this.ctx.fillText("GAME OVER", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 - 30);
+                this.ctx.fillText("GAME OVER", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 80);
                 this.ctx.fillStyle = Config.WHITE;
                 this.ctx.font = "20px sans-serif";
-                this.ctx.fillText(`Pontuação final: ${this.score}`, Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 20);
+                this.ctx.fillText(`Pontuação final: ${this.score}`, Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 130);
                 this.ctx.font = "14px sans-serif";
-                this.ctx.fillText("Clique em 'Menu' ou recarregue para reiniciar", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 70);
+                this.ctx.fillText("Clique em 'Menu' ou recarregue para reiniciar", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 170);
             }
         }
     }
 
     handleMouse(mx, my) {
-        SoundManager.init(); // Ativa contexto de áudio se pendente
+        SoundManager.init();
         if (this.gameState === Config.MENU) {
             this.playButton.handleEvent(mx, my);
             this.scoresButton.handleEvent(mx, my);
@@ -907,9 +891,7 @@ class Game {
         } else if (this.gameState === Config.HIGH_SCORES) {
             this.menuButton.handleEvent(mx, my);
         } else {
-            this.pauseButton.handleEvent(mx, my);
             this.menuButton.handleEvent(mx, my);
-            this.invertButton.handleEvent(mx, my);
         }
     }
 
@@ -921,9 +903,7 @@ class Game {
         } else if (this.gameState === Config.HIGH_SCORES) {
             this.menuButton.checkHover(mx, my);
         } else {
-            this.pauseButton.checkHover(mx, my);
             this.menuButton.checkHover(mx, my);
-            this.invertButton.checkHover(mx, my);
         }
     }
 }
@@ -933,7 +913,6 @@ window.onload = () => {
     const canvas = document.getElementById("gameCanvas");
     const game = new Game(canvas);
 
-    // Loop principal de atualização e renderização
     setInterval(() => {
         game.update();
         game.draw();
@@ -951,7 +930,7 @@ window.onload = () => {
             case "ArrowDown": game.moveShape(0, 1); break;
             case " ": game.invertCurrentShape(); break;
             case "Control": 
-                while(game.moveShape(0, 1)) {} // Queda rápida pura
+                while(game.moveShape(0, 1)) {}
                 break;
             case "p":
             case "P":
@@ -960,10 +939,8 @@ window.onload = () => {
         }
     });
 
-    // Mapeamento de cliques do Mouse / Toques virtuais no Canvas
     function getCanvasCoords(e) {
         const rect = canvas.getBoundingClientRect();
-        // Trata eventos touch e mouse uniformemente
         let clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
         let clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
         
