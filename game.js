@@ -1,27 +1,26 @@
-// CONFIGURAÇÕES GERAIS (Substitui config.py)
+// CONFIGURAÇÕES GERAIS
 const Config = {
     SCREEN_WIDTH: 400,
     SCREEN_HEIGHT: 600,
     FPS: 30,
-    GAME_SPEED: 750, // Alterado de 500 para 750 para deixar a queda dos blocos mais lenta
+    GAME_SPEED: 750,
 
     BOARD_WIDTH: 10,
     BOARD_HEIGHT: 16,
     BLOCK_SIZE: 30,
 
-    // Cores (Formatos Web padrão)
     BLACK: "#000000",
     GRAY: "#323232",
     WHITE: "#ffffff",
-    POSITIVE_COLOR: "#4caf50",  // Verde
-    NEGATIVE_COLOR: "#f44336",  // Vermelho
-    POSITIVE_BORDER: "#2e7d32", // Verde escuro
-    NEGATIVE_BORDER: "#c62828", // Vermelho escuro
-    FRACTION_COLOR: "#2196f3",  // Azul
-    FRACTION_BORDER: "#1976d2", // Azul escuro
-    MUL_COLOR: "#b0c4de",       // LightSteelBlue
+    POSITIVE_COLOR: "#4caf50",
+    NEGATIVE_COLOR: "#f44336",
+    POSITIVE_BORDER: "#2e7d32",
+    NEGATIVE_BORDER: "#c62828",
+    FRACTION_COLOR: "#2196f3",
+    FRACTION_BORDER: "#1976d2",
+    MUL_COLOR: "#b0c4de",
     MUL_BORDER: "#708090",
-    MAGIC_COLOR: "#ffd700",     // Dourado
+    MAGIC_COLOR: "#ffd700",
     MAGIC_BORDER: "#ffa500",
 
     BG_COLOR: "#121212",
@@ -31,19 +30,17 @@ const Config = {
     MENU_BG_COLOR: "#0a0a23",
     MENU_TITLE_COLOR: "#ffd700",
 
-    // Estados do jogo
     MENU: 0,
     PLAYING: 1,
     GAME_OVER: 2,
     PAUSED: 3,
     HIGH_SCORES: 4,
 
-    // Removido "BOMB" e "LINE", deixando apenas os blocos padrão e o bloco mágico coluna "APAGA"
     BLOCK_TYPES: ["SINGLE", "DOUBLE", "FRACTION", "APAGA", "MUL"],
     BLOCK_TYPE_WEIGHTS: [50, 25, 8, 5, 5]
 };
 
-// Classe auxiliar para frações exatas (Substitui fractions.Fraction do Python)
+// Frações
 class Fraction {
     constructor(numerator, denominator) {
         this.numerator = numerator;
@@ -72,7 +69,7 @@ class Fraction {
     }
 }
 
-// GERENCIADOR DE RECORDES (Substitui scores.py / LocalStorage da Web)
+// Recordes
 const ScoreManager = {
     loadScores: function() {
         let scores = localStorage.getItem("calcula_ai_scores");
@@ -93,7 +90,7 @@ const ScoreManager = {
     }
 };
 
-// GERENCIADOR DE SONS (Substitui sounds.py usando a Web Audio API nativa)
+// Sons
 const SoundManager = {
     ctx: null,
     init: function() {
@@ -122,7 +119,7 @@ const SoundManager = {
     playEliminate: function() { this.playTone(880, "square", 0.2); }
 };
 
-// GERENCIADOR DE EFEITOS (Substitui effects.py)
+// Efeitos
 class Particle {
     constructor(x, y, vx, vy, color) {
         this.x = x; this.y = y;
@@ -173,7 +170,7 @@ class EffectsManager {
     }
 }
 
-// CLASSES DOS BLOCOS (Substitui blocks.py)
+// Blocos
 class NumberBlock {
     constructor(value) {
         this.type = "NUMBER";
@@ -222,7 +219,7 @@ class MulBlock {
     }
 }
 
-// FORMAS / PEÇAS (Substitui shapes.py - Classes BombBlock e LineBlock removidas)
+// Formato das peças
 class BlockShape {
     constructor(type) {
         if (!type) {
@@ -277,7 +274,7 @@ class BlockShape {
     }
 }
 
-// BOTÃO PARA CANVAS (Substitui ui.py)
+// Botões
 class Button {
     constructor(x, y, width, height, text, action) {
         this.x = x; this.y = y; this.width = width; this.height = height;
@@ -310,7 +307,7 @@ class Button {
     }
 }
 
-// CLASSE PRINCIPAL DO JOGO (Substitui game.py)
+// Classe Principal
 class Game {
     constructor(canvas) {
         this.canvas = canvas;
@@ -319,7 +316,6 @@ class Game {
         this.effects = new EffectsManager();
         this.highScores = ScoreManager.loadScores();
 
-        // Carregamento de imagens nativas (Suporte opcional)
         this.backgroundImage = new Image();
         this.backgroundImage.src = 'imagem_fundo.png';
         this.pausedImage = new Image();
@@ -327,14 +323,9 @@ class Game {
         this.gameOverImage = new Image();
         this.gameOverImage.src = 'galo.png';
 
-        // Botão Menu na área superior direita do tabuleiro
         this.menuButton = new Button(Config.SCREEN_WIDTH - 90, 10, 80, 40, "Menu", () => this.goToMenu());
 
-        // --- INTERFACE ALTERADA ---
-        // Botão Jogar na Tela Inicial
         this.playButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2, 160, 50, "Jogar", () => this.startGame());
-        
-        // Novo Botão SAIR no menu principal que fecha a janela/aplicativo
         this.quitButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2 + 80, 160, 50, "SAIR", () => {
             SoundManager.playClick();
             if (confirm("Deseja mesmo fechar o jogo?")) {
@@ -390,7 +381,6 @@ class Game {
         this.currentShape.y = 0;
         this.updateBlockPositions();
 
-        // Checar Game Over
         this.currentShape.blocks.forEach((block, i) => {
             let bx = this.currentShape.x + (i === 1 && this.currentShape.type === "DOUBLE" ? 1 : 0);
             let by = this.currentShape.y;
@@ -449,60 +439,80 @@ class Game {
 
         this.combo = 1;
 
-        // Validações antigas de Bomba e Linha removidas completamente aqui
+        // SISTEMA DE CASCATA: Permite que blocos combinem consecutivamente se caírem sobre novos pares
+        let resolving = true;
+        let playSound = false;
+        
+        while(resolving) {
+            resolving = false;
+            
+            if (this.checkMagicColumn()) resolving = true;
+            if (this.checkMulBlock()) resolving = true;
+            if (this.checkCombinations()) resolving = true;
+            
+            if (resolving) {
+                playSound = true;
+                this.applyGravity();
+            }
+        }
 
-        this.checkMagicColumn();
-        this.checkPairs();
-        this.checkFractions();
-        this.checkDoubles();
-        this.checkMulBlock();
-        this.applyGravity();
+        if (playSound) {
+            SoundManager.playEliminate();
+        }
 
         SoundManager.playDrop();
         this.lastFallTime = Date.now();
     }
 
-    checkPairs() {
-        let pairsFound = false;
-        let multiplications = false;
+    // Unifica todas as verificações de pares de blocos em um só método
+    checkCombinations() {
+        let combined = false;
         for (let y = 0; y < Config.BOARD_HEIGHT - 1; y++) {
             for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                 let b1 = this.board[y][x];
                 let b2 = this.board[y+1][x];
 
-                if (b1 && b2 && b1.type === "NUMBER" && b2.type === "NUMBER" && Math.abs(b1.value) === Math.abs(b2.value) && b1.value * b2.value < 0) {
+                if (!b1 || !b2) continue;
+
+                // 1. Número com Número (Opostos)
+                if (b1.type === "NUMBER" && b2.type === "NUMBER" && b1.value === -b2.value) {
                     this.board[y][x] = null;
                     this.board[y+1][x] = null;
                     this.score += Math.abs(b1.value) * 10 * this.combo;
                     this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 30, 5);
-                    pairsFound = true;
                     this.combo++;
-                } else if (b1 && b2 && ((b1.type === "FRACTION" && b2.type === "NUMBER") || (b1.type === "NUMBER" && b2.type === "FRACTION"))) {
+                    combined = true;
+                }
+                // 2. Fração com Fração (BUG CORRIGIDO AQUI)
+                else if (b1.type === "FRACTION" && b2.type === "FRACTION") {
+                    let res = b1.fraction.multiply(b2.fraction);
+                    this.board[y+1][x] = (res.denominator === 1) ? new NumberBlock(res.numerator) : new FractionBlock(res);
+                    this.board[y][x] = null;
+                    this.score += 10 * this.combo;
+                    this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 30, 5);
+                    this.combo++;
+                    combined = true;
+                }
+                // 3. Fração com Número ou Número com Fração
+                else if ((b1.type === "FRACTION" && b2.type === "NUMBER") || (b1.type === "NUMBER" && b2.type === "FRACTION")) {
                     let frac_b = b1.type === "FRACTION" ? b1 : b2;
                     let num_b = b1.type === "NUMBER" ? b1 : b2;
-                    let y_num = b1.type === "NUMBER" ? y : y + 1;
-
-                    let result = frac_b.fraction.multiply(num_b.value);
-                    if (result.denominator === 1) {
-                        this.board[y_num][x] = new NumberBlock(result.numerator);
-                    } else {
-                        this.board[y_num][x] = new FractionBlock(result);
-                    }
-                    this.board[b1.type === "FRACTION" ? y : y+1][x] = null;
+                    
+                    let res = frac_b.fraction.multiply(num_b.value);
+                    this.board[y+1][x] = (res.denominator === 1) ? new NumberBlock(res.numerator) : new FractionBlock(res);
+                    this.board[y][x] = null;
                     this.score += 5 * this.combo;
                     this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 30, 5);
-                    multiplications = true;
                     this.combo++;
+                    combined = true;
                 }
             }
         }
-        if (pairsFound || multiplications) {
-            SoundManager.playEliminate();
-            this.applyGravity();
-        }
+        return combined;
     }
 
     checkMagicColumn() {
+        let combined = false;
         for (let y = 0; y < Config.BOARD_HEIGHT; y++) {
             for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                 let block = this.board[y][x];
@@ -512,59 +522,24 @@ class Game {
                             if (this.board[yy][x]) {
                                 this.board[yy][x] = null;
                                 this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + yy*Config.BLOCK_SIZE + 15, 3);
-                                // Linha de pontuação REMOVIDA ("O bloco mágico coluna não deve gerar nenhuma pontuação")
                             }
                         }
-                        SoundManager.playEliminate();
                         this.combo++;
-                        this.applyGravity();
+                        combined = true;
                     }
                 }
             }
         }
-    }
-
-    checkFractions() {
-        for (let y = 0; y < Config.BOARD_HEIGHT - 1; y++) {
-            for (let x = 0; x < Config.BOARD_WIDTH; x++) {
-                let b1 = this.board[y][x];
-                let b2 = this.board[y+1][x];
-                if (b1 && b2 && b1.type === "FRACTION" && b2.type === "NUMBER") {
-                    let res = b1.fraction.multiply(b2.value);
-                    this.board[y+1][x] = (res.denominator === 1) ? new NumberBlock(res.numerator) : new FractionBlock(res);
-                    this.board[y][x] = null;
-                    this.score += 5 * this.combo;
-                    this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 30, 5);
-                    this.combo++;
-                    SoundManager.playEliminate();
-                }
-            }
-        }
-    }
-
-    checkDoubles() {
-        for (let y = 0; y < Config.BOARD_HEIGHT - 1; y++) {
-            for (let x = 0; x < Config.BOARD_WIDTH; x++) {
-                let top = this.board[y][x];
-                let btm = this.board[y+1][x];
-                if (top && btm && top.type === "NUMBER" && btm.type === "NUMBER" && top.value === -btm.value) {
-                    this.board[y][x] = null;
-                    this.board[y+1][x] = null;
-                    this.score += Math.abs(top.value) * 5 * this.combo;
-                    this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 30, 5);
-                    this.combo++;
-                    SoundManager.playEliminate();
-                }
-            }
-        }
+        return combined;
     }
 
     checkMulBlock() {
+        let combined = false;
         for (let y = 0; y < Config.BOARD_HEIGHT - 1; y++) {
             for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                 let b = this.board[y][x];
                 let below = this.board[y+1][x];
-                if (b && b.type === "MUL" && below) {
+                if (b && b.type === "MUL" && below && (below.type === "NUMBER" || below.type === "FRACTION")) {
                     if (below.type === "NUMBER") {
                         this.board[y+1][x] = new NumberBlock(b.value * below.value);
                     } else if (below.type === "FRACTION") {
@@ -575,7 +550,7 @@ class Game {
                     this.score += 10 * this.combo;
                     this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 30, 5);
                     this.combo++;
-                    SoundManager.playEliminate();
+                    combined = true;
                 }
             }
         }
@@ -583,7 +558,7 @@ class Game {
             for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                 let b = this.board[y][x];
                 let above = this.board[y-1][x];
-                if (b && b.type === "MUL" && above) {
+                if (b && b.type === "MUL" && above && (above.type === "NUMBER" || above.type === "FRACTION")) {
                     if (above.type === "NUMBER") {
                         this.board[y-1][x] = new NumberBlock(b.value * above.value);
                     } else if (above.type === "FRACTION") {
@@ -594,10 +569,11 @@ class Game {
                     this.score += 10 * this.combo;
                     this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + (y-1)*Config.BLOCK_SIZE + 30, 5);
                     this.combo++;
-                    SoundManager.playEliminate();
+                    combined = true;
                 }
             }
         }
+        return combined;
     }
 
     applyGravity() {
@@ -703,38 +679,16 @@ class Game {
             this.ctx.font = "16px sans-serif";
             this.ctx.fillText("Combine números opostos", Config.SCREEN_WIDTH/2, 220);
 
-            // Apenas Jogar e Sair são renderizados no menu agora
             this.playButton.draw(this.ctx);
             this.quitButton.draw(this.ctx);
 
         } else if (this.gameState === Config.HIGH_SCORES) {
+            // High scores hidden logic is kept safe just in case
             this.ctx.fillStyle = Config.MENU_BG_COLOR;
             this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
-
-            this.ctx.fillStyle = Config.MENU_TITLE_COLOR;
-            this.ctx.font = "bold 36px sans-serif";
-            this.ctx.textAlign = "center";
-            this.ctx.fillText("RECORDES", Config.SCREEN_WIDTH/2, 100);
-
-            let yPos = 200;
-            this.highScores.forEach((s, i) => {
-                this.ctx.fillStyle = Config.GRAY;
-                this.ctx.fillRect(Config.SCREEN_WIDTH/2 - 100, yPos, 200, 40);
-                this.ctx.strokeStyle = Config.WHITE;
-                this.ctx.strokeRect(Config.SCREEN_WIDTH/2 - 100, yPos, 200, 40);
-
-                this.ctx.fillStyle = Config.WHITE;
-                this.ctx.font = "18px sans-serif";
-                this.ctx.textAlign = "left";
-                this.ctx.fillText(`${i+1}.`, Config.SCREEN_WIDTH/2 - 85, yPos + 20);
-                this.ctx.textAlign = "right";
-                this.ctx.fillText(s, Config.SCREEN_WIDTH/2 + 85, yPos + 20);
-                yPos += 50;
-            });
-
             this.menuButton.draw(this.ctx);
-
         } else {
+            // Em Jogo / Pausado / Game Over
             this.ctx.fillStyle = Config.BG_COLOR;
             this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
 
@@ -769,8 +723,6 @@ class Game {
             this.ctx.font = "bold 18px sans-serif";
             this.ctx.textAlign = "right";
             this.ctx.fillText(`Pontos: ${this.score}`, Config.SCREEN_WIDTH - 110, 35);
-
-            this.menuButton.draw(this.ctx);
             
             this.drawNextBlockPreview();
             this.effects.draw(this.ctx);
@@ -786,7 +738,7 @@ class Game {
                 this.ctx.fillStyle = Config.WHITE;
                 this.ctx.font = "bold 20px sans-serif";
                 this.ctx.textAlign = "center";
-                this.ctx.fillText("PAUSOU POR QUÊ? TÁ DIFÍCIL?", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 60);
+                this.ctx.fillText("PAUSOU POR QUÊ? TÁ DIFÍCIL?", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 180);
             } else if (this.gameState === Config.GAME_OVER) {
                 this.ctx.fillStyle = "rgba(0,0,0,0.9)";
                 this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
@@ -802,9 +754,11 @@ class Game {
                 this.ctx.fillStyle = Config.WHITE;
                 this.ctx.font = "20px sans-serif";
                 this.ctx.fillText(`Pontuação final: ${this.score}`, Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 130);
-                this.ctx.font = "14px sans-serif";
-                this.ctx.fillText("Clique em 'Menu' ou recarregue para reiniciar", Config.SCREEN_WIDTH/2, Config.SCREEN_HEIGHT/2 + 170);
             }
+
+            // BUG CORRIGIDO: O botão Menu agora é desenhado POR ÚLTIMO
+            // Isso garante que ele fique visível por cima da tela escura de Game Over ou Pause
+            this.menuButton.draw(this.ctx);
         }
     }
 
@@ -813,8 +767,6 @@ class Game {
         if (this.gameState === Config.MENU) {
             this.playButton.handleEvent(mx, my);
             this.quitButton.handleEvent(mx, my);
-        } else if (this.gameState === Config.HIGH_SCORES) {
-            this.menuButton.handleEvent(mx, my);
         } else {
             this.menuButton.handleEvent(mx, my);
         }
@@ -824,15 +776,13 @@ class Game {
         if (this.gameState === Config.MENU) {
             this.playButton.checkHover(mx, my);
             this.quitButton.checkHover(mx, my);
-        } else if (this.gameState === Config.HIGH_SCORES) {
-            this.menuButton.checkHover(mx, my);
         } else {
             this.menuButton.checkHover(mx, my);
         }
     }
 }
 
-// INICIALIZAÇÃO DO LOOP (Substitui main.py)
+// INICIALIZAÇÃO
 window.onload = () => {
     const canvas = document.getElementById("gameCanvas");
     const game = new Game(canvas);
@@ -842,7 +792,6 @@ window.onload = () => {
         game.draw();
     }, 1000 / Config.FPS);
 
-    // Eventos de Teclado (PC)
     window.addEventListener("keydown", (e) => {
         if (game.gameState !== Config.PLAYING) {
             if (e.key === "p" || e.key === "P") game.togglePause();
@@ -867,7 +816,6 @@ window.onload = () => {
         const rect = canvas.getBoundingClientRect();
         let clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
         let clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-        
         return {
             x: (clientX - rect.left) * (canvas.width / rect.width),
             y: (clientY - rect.top) * (canvas.height / rect.height)
@@ -884,7 +832,6 @@ window.onload = () => {
         game.handleHover(coords.x, coords.y);
     });
 
-    // Eventos Touch nos botões HTML inferiores (Mobile)
     document.getElementById("btnLeft").addEventListener("click", () => game.moveShape(-1, 0));
     document.getElementById("btnRight").addEventListener("click", () => game.moveShape(1, 0));
     document.getElementById("btnDown").addEventListener("click", () => game.moveShape(0, 1));
