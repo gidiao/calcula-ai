@@ -3,7 +3,7 @@ const Config = {
     SCREEN_WIDTH: 400,
     SCREEN_HEIGHT: 600,
     FPS: 30,
-    GAME_SPEED: 500, // milissegundos
+    GAME_SPEED: 750, // Alterado de 500 para 750 para deixar a queda dos blocos mais lenta
 
     BOARD_WIDTH: 10,
     BOARD_HEIGHT: 16,
@@ -21,10 +21,6 @@ const Config = {
     FRACTION_BORDER: "#1976d2", // Azul escuro
     MUL_COLOR: "#b0c4de",       // LightSteelBlue
     MUL_BORDER: "#708090",
-    BOMB_COLOR: "#ff8c00",      // DarkOrange
-    BOMB_BORDER: "#8b0000",
-    LINE_COLOR: "#3f51b5",      // Indigo claro
-    LINE_BORDER: "#303f9f",
     MAGIC_COLOR: "#ffd700",     // Dourado
     MAGIC_BORDER: "#ffa500",
 
@@ -42,8 +38,9 @@ const Config = {
     PAUSED: 3,
     HIGH_SCORES: 4,
 
-    BLOCK_TYPES: ["SINGLE", "DOUBLE", "FRACTION", "APAGA", "MUL", "BOMB", "LINE"],
-    BLOCK_TYPE_WEIGHTS: [50, 25, 8, 5, 5, 5, 3]
+    // Removido "BOMB" e "LINE", deixando apenas os blocos padrão e o bloco mágico coluna "APAGA"
+    BLOCK_TYPES: ["SINGLE", "DOUBLE", "FRACTION", "APAGA", "MUL"],
+    BLOCK_TYPE_WEIGHTS: [50, 25, 8, 5, 5]
 };
 
 // Classe auxiliar para frações exatas (Substitui fractions.Fraction do Python)
@@ -79,7 +76,7 @@ class Fraction {
 const ScoreManager = {
     loadScores: function() {
         let scores = localStorage.getItem("calcula_ai_scores");
-        if (!scores) return [1265, 170, 115, 60]; // Padrão inicial original
+        if (!scores) return [1265, 170, 115, 60];
         try {
             let parsed = JSON.parse(scores);
             return parsed.map(Number).sort((a,b) => b - a).slice(0, 5);
@@ -136,7 +133,7 @@ class Particle {
     update() {
         this.x += this.vx;
         this.y += this.vy;
-        this.vy += 0.1; // gravidade leve
+        this.vy += 0.1;
         this.life--;
     }
     draw(ctx) {
@@ -225,25 +222,7 @@ class MulBlock {
     }
 }
 
-class BombBlock {
-    constructor() {
-        this.type = "BOMB";
-        this.value = "*";
-        this.color = Config.BOMB_COLOR;
-        this.border_color = Config.BOMB_BORDER;
-    }
-}
-
-class LineBlock {
-    constructor() {
-        this.type = "LINE";
-        this.value = "-";
-        this.color = Config.LINE_COLOR;
-        this.border_color = Config.LINE_BORDER;
-    }
-}
-
-// FORMAS / PEÇAS (Substitui shapes.py)
+// FORMAS / PEÇAS (Substitui shapes.py - Classes BombBlock e LineBlock removidas)
 class BlockShape {
     constructor(type) {
         if (!type) {
@@ -286,10 +265,6 @@ class BlockShape {
             this.blocks.push(new FractionBlock());
         } else if (this.type === "APAGA") {
             this.blocks.push(new MagicBlock());
-        } else if (this.type === "BOMB") {
-            this.blocks.push(new BombBlock());
-        } else if (this.type === "LINE") {
-            this.blocks.push(new LineBlock());
         }
     }
 
@@ -352,19 +327,19 @@ class Game {
         this.gameOverImage = new Image();
         this.gameOverImage.src = 'galo.png';
 
-        // --- INTERFACE CORRIGIDA ---
-        // Apenas o botão Menu posicionado no topo superior direito da área de jogo
+        // Botão Menu na área superior direita do tabuleiro
         this.menuButton = new Button(Config.SCREEN_WIDTH - 90, 10, 80, 40, "Menu", () => this.goToMenu());
 
-        // Botões da Tela Inicial / Menu
+        // --- INTERFACE ALTERADA ---
+        // Botão Jogar na Tela Inicial
         this.playButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2, 160, 50, "Jogar", () => this.startGame());
-        this.scoresButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2 + 70, 160, 50, "Recordes", () => this.showHighScores());
         
-        // Botão Reset DB com feedback visual de confirmação (alert) correta
-        this.exitButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2 + 140, 160, 50, "Reset DB", () => {
-            localStorage.clear();
-            this.highScores = ScoreManager.loadScores();
-            alert("Banco de dados resetado com sucesso!");
+        // Novo Botão SAIR no menu principal que fecha a janela/aplicativo
+        this.quitButton = new Button(Config.SCREEN_WIDTH / 2 - 80, Config.SCREEN_HEIGHT / 2 + 80, 160, 50, "SAIR", () => {
+            SoundManager.playClick();
+            if (confirm("Deseja mesmo fechar o jogo?")) {
+                window.close();
+            }
         });
 
         this.resetGame();
@@ -384,12 +359,6 @@ class Game {
         SoundManager.playClick();
         this.resetGame();
         this.gameState = Config.PLAYING;
-    }
-
-    showHighScores() {
-        SoundManager.playClick();
-        this.highScores = ScoreManager.loadScores();
-        this.gameState = Config.HIGH_SCORES;
     }
 
     goToMenu() {
@@ -480,39 +449,7 @@ class Game {
 
         this.combo = 1;
 
-        this.currentShape.blocks.forEach(block => {
-            if (block.type === "BOMB") {
-                let cx = block.x, cy = block.y;
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
-                        let x = cx + dx, y = cy + dy;
-                        if (x >= 0 && x < Config.BOARD_WIDTH && y >= 0 && y < Config.BOARD_HEIGHT) {
-                            let target = this.board[y][x];
-                            if (target) {
-                                this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + y*Config.BLOCK_SIZE + 15, 5);
-                                this.score += (target.type === "NUMBER") ? Math.abs(target.value) * 5 * this.combo : 10 * this.combo;
-                                this.board[y][x] = null;
-                            }
-                        }
-                    }
-                }
-                this.board[cy][cx] = null;
-                SoundManager.playEliminate();
-                this.combo++;
-            } else if (block.type === "LINE") {
-                let row = block.y;
-                for (let x = 0; x < Config.BOARD_WIDTH; x++) {
-                    let target = this.board[row][x];
-                    if (target) {
-                        this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + row*Config.BLOCK_SIZE + 15, 3);
-                        this.score += (target.type === "NUMBER") ? Math.abs(target.value) * 5 * this.combo : 10 * this.combo;
-                        this.board[row][x] = null;
-                    }
-                }
-                SoundManager.playEliminate();
-                this.combo++;
-            }
-        });
+        // Validações antigas de Bomba e Linha removidas completamente aqui
 
         this.checkMagicColumn();
         this.checkPairs();
@@ -575,7 +512,7 @@ class Game {
                             if (this.board[yy][x]) {
                                 this.board[yy][x] = null;
                                 this.effects.createSparks(x*Config.BLOCK_SIZE + 15, 100 + yy*Config.BLOCK_SIZE + 15, 3);
-                                this.score += 10 * this.combo;
+                                // Linha de pontuação REMOVIDA ("O bloco mágico coluna não deve gerar nenhuma pontuação")
                             }
                         }
                         SoundManager.playEliminate();
@@ -719,10 +656,6 @@ class Game {
         } else if (block.type === "APAGA") {
             this.ctx.fillStyle = Config.BLACK;
             this.ctx.fillText("@", cx, cy);
-        } else if (block.type === "BOMB") {
-            this.ctx.fillText("*", cx, cy);
-        } else if (block.type === "LINE") {
-            this.ctx.fillText("-", cx, cy);
         }
     }
 
@@ -770,9 +703,9 @@ class Game {
             this.ctx.font = "16px sans-serif";
             this.ctx.fillText("Combine números opostos", Config.SCREEN_WIDTH/2, 220);
 
+            // Apenas Jogar e Sair são renderizados no menu agora
             this.playButton.draw(this.ctx);
-            this.scoresButton.draw(this.ctx);
-            this.exitButton.draw(this.ctx);
+            this.quitButton.draw(this.ctx);
 
         } else if (this.gameState === Config.HIGH_SCORES) {
             this.ctx.fillStyle = Config.MENU_BG_COLOR;
@@ -802,11 +735,9 @@ class Game {
             this.menuButton.draw(this.ctx);
 
         } else {
-            // Em jogo / Pausado / Game Over
             this.ctx.fillStyle = Config.BG_COLOR;
             this.ctx.fillRect(0, 0, Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT);
 
-            // Suporte para Imagem de Fundo (Se carregada com sucesso)
             if (this.backgroundImage.complete && this.backgroundImage.width > 0) {
                 let imgW = this.backgroundImage.width;
                 let imgH = this.backgroundImage.height;
@@ -815,13 +746,11 @@ class Game {
                 this.ctx.drawImage(this.backgroundImage, x, y);
             }
 
-            // Grade do Tabuleiro
             let boardTop = 100;
             this.ctx.strokeStyle = Config.GRAY;
             this.ctx.lineWidth = 2;
             this.ctx.strokeRect(0, boardTop, Config.BOARD_WIDTH * Config.BLOCK_SIZE, Config.BOARD_HEIGHT * Config.BLOCK_SIZE);
 
-            // Blocos fixos
             for (let y = 0; y < Config.BOARD_HEIGHT; y++) {
                 for (let x = 0; x < Config.BOARD_WIDTH; x++) {
                     if (this.board[y][x]) {
@@ -830,20 +759,17 @@ class Game {
                 }
             }
 
-            // Peça em queda
             if (this.currentShape && this.gameState === Config.PLAYING) {
                 this.currentShape.blocks.forEach(block => {
                     this.drawBlock(block.x*Config.BLOCK_SIZE, boardTop + block.y*Config.BLOCK_SIZE, block);
                 });
             }
 
-            // Placar de Pontos
             this.ctx.fillStyle = Config.WHITE;
             this.ctx.font = "bold 18px sans-serif";
             this.ctx.textAlign = "right";
             this.ctx.fillText(`Pontos: ${this.score}`, Config.SCREEN_WIDTH - 110, 35);
 
-            // Apenas o botão Menu é renderizado na área superior direita
             this.menuButton.draw(this.ctx);
             
             this.drawNextBlockPreview();
@@ -886,8 +812,7 @@ class Game {
         SoundManager.init();
         if (this.gameState === Config.MENU) {
             this.playButton.handleEvent(mx, my);
-            this.scoresButton.handleEvent(mx, my);
-            this.exitButton.handleEvent(mx, my);
+            this.quitButton.handleEvent(mx, my);
         } else if (this.gameState === Config.HIGH_SCORES) {
             this.menuButton.handleEvent(mx, my);
         } else {
@@ -898,8 +823,7 @@ class Game {
     handleHover(mx, my) {
         if (this.gameState === Config.MENU) {
             this.playButton.checkHover(mx, my);
-            this.scoresButton.checkHover(mx, my);
-            this.exitButton.checkHover(mx, my);
+            this.quitButton.checkHover(mx, my);
         } else if (this.gameState === Config.HIGH_SCORES) {
             this.menuButton.checkHover(mx, my);
         } else {
